@@ -105,6 +105,12 @@ function copy_or_move(is_move, tool_name) {
             this.error("cp: needs two arguments");
             return;
         }
+        for(var i = 0; i < arguments.length; ++i) {
+            if(arguments[i].length === 0) {
+                this.error(tool_name + ": empty argument");
+                return;
+            }
+        }
         var target_is_dir = arguments.length > 2;
         var target = join_path(env.path, arguments[arguments.length - 1]);
         for(var i = 0; i < arguments.length - 1; ++i) {
@@ -187,7 +193,10 @@ jQuery(function($, undefined) {
             var path = null;
             for(var i = 0; i < arguments.length; ++i) {
                 var arg = arguments[i];
-                if(arg.length > 0 && arg[0] != '-') {
+                if(arg.length === 0) {
+                    this.error("ls: empty argument");
+                    return;
+                } else if(arg[0] != '-') {
                     if(path === null) {
                         path = arg;
                     } else {
@@ -222,6 +231,10 @@ jQuery(function($, undefined) {
             }
             for(var i = 0; i < arguments.length; ++i) {
                 var arg = arguments[i];
+                if(arg.length === 0) {
+                    this.error("cat: empty argument");
+                    return;
+                }
                 var ent = get_file(join_path(env.path, arguments[i]));
                 if(ent === null) {
                     this.error("cat: " + arg + ": no such file or directory");
