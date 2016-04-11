@@ -47,14 +47,14 @@ var env = new Object();
 env.path = '/home/user';
 env.directories = {
     '/': {
-        directories: ['home'],
-        files: []},
+        directories: {'home': true},
+        files: {}},
     '/home': {
-        directories: ['user'],
-        files: []},
+        directories: {'user': true},
+        files: {}},
     '/home/user': {
-        directories: [],
-        files: ['experiment.py']}
+        directories: {},
+        files: {'experiment.py': true}}
 };
 for(k in env.directories) {
     env.directories[k].type = 'directory';
@@ -137,7 +137,7 @@ jQuery(function($, undefined) {
             } else if(ent.type === 'file') {
                 this.echo(patharg);
             } else if(ent.type === 'directory') {
-                this.echo($.extend([], ent.directories, ent.files).join('\t'));
+                this.echo($.extend([], Object.keys(ent.directories), Object.keys(ent.files)).join('\t'));
             }
         },
 
