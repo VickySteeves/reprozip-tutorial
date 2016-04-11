@@ -20,10 +20,17 @@ function join_path(a, b) {
     } else {
         path = a + "/" + b;
     }
-    path = path.replace(/\/(\.?\/)+/g, '/');
-    path = path.replace(/(.)\/(\.?\/)*\.?$/, '$1');
-    // TODO: ..
-    return path;
+    src = path.split('/');
+    target = [];
+    for(i = 0; i < src.length; ++i) {
+        comp = src[i];
+        if(comp === '..') {
+            target.pop();
+        } else if(comp !== '' && comp !== '.') {
+            target.push(comp);
+        }
+    }
+    return '/' + target.join('/');
 }
 
 function get_file(path) {
