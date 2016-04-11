@@ -10,17 +10,146 @@
         <!-- https://github.com/jcubic/jquery.terminal -->
         <div id="term_tutorial" class="terminal" style="height: 200px;"></div>
         <script>
+var READTHEDOCS_VERSION = '1.0.x';
+
+function join_path(a, b) {
+    var path;
+    b = b || '';
+    if(b.length > 0 && b[0] === '/') {
+        path = b;
+    } else {
+        path = a + "/" + b;
+    }
+    path = path.replace(/\/(\.?\/)+/g, '/');
+    path = path.replace(/(.)\/(\.?\/)*\.?$/, '$1');
+    // TODO: ..
+    return path;
+}
+
+function get_file(path) {
+    if(path in env.directories) {
+        return env.directories[path];
+    } else if(path in env.files) {
+        return env.files[path];
+    } else {
+        return null;
+    }
+}
+
 var env = new Object();
-env.path = "/home/user";
+env.path = '/home/user';
+env.directories = {
+    '/': {
+        directories: ['home'],
+        files: []},
+    '/home': {
+        directories: ['user'],
+        files: []},
+    '/home/user': {
+        directories: [],
+        files: ['experiment.py']}
+};
+for(k in env.directories) {
+    env.directories[k].type = 'directory';
+}
+env.files = {
+    '/home/user/experiment.py': {what: 'experiment'}
+};
+for(k in env.files) {
+    env.files[k].type = 'file';
+}
+
 jQuery(function($, undefined) {
     $('#term_tutorial').terminal({
+        // Fake/replaced commands
+        //
+        help: function() {
+            this.echo(
+                "This JavaScript shell only supports a limited set of commands.",
+                {
+                    finalize: function(div) {
+                        div.append("\nIf you want to install ReproZip on your own machine, type install or <a href=\"https://reprozip.readthedocs.org/en/" + READTHEDOCS_VERSION + "/install.html\" target=\"_blank\">click here</a>!");
+                    }
+                });
+        },
+        install: function() {
+            this.echo("Opening installation instructions in new window...");
+            window.open('https://reprozip.readthedocs.org/en/' + READTHEDOCS_VERSION + '/install.html', '_blank');
+        },
+        write: function() {
+            this.echo("Taking you to our Gitter chatroom...");
+            window.open('https://gitter.im/ViDA-NYU/reprozip', '_blank');
+        },
+        mail: function() {
+            this.echo("Don't hesitate to use our mailing-list: reprozip-users@vgc.poly.edu");
+            window.open('http://vgc.poly.edu/mailman/listinfo/reprozip-users', '_blank');
+        },
+
+        // Simple commands
+        //
+        pwd: function() {
+            this.echo(env.path);
+        },
+        echo: function() {
+            this.echo($.makeArray(arguments).join(' '));
+        },
+        cd: function(wd) {
+            if(arguments.length !== 1) {
+                this.error("cd: too many arguments");
+                return;
+            }
+            var path = join_path(env.path, wd);
+            if(path === '/' || path === '/home' || path === '/home/user/') {
+                env.path = wd;
+            }
+            this.error("cd: " + path + ": not something we can move to");
+        },
         ls: function() {
-            this.echo("myexperiment.py\tmydata.csv");
-        }
+            var path = null;
+            for(var i = 0; i < arguments.length; ++i) {
+                var arg = arguments[i];
+                if(arg.length > 0 && arg[0] != '-') {
+                    if(path === null) {
+                        path = arg;
+                    } else {
+                        this.error("ls: too many arguments");
+                        return;
+                    }
+                }
+            }
+            var patharg = '.';
+            if(path !== null) {
+                patharg = path;
+                path = join_path(env.path, path);
+            } else {
+                path = env.path;
+            }
+            var ent = get_file(path);
+            if(ent === null) {
+                this.error("ls: " + patharg + ": no such file or directory");
+            } else if(ent.type === 'file') {
+                this.echo(patharg);
+            } else if(ent.type === 'directory') {
+                this.echo($.extend([], ent.directories, ent.files).join('\t'));
+            }
+        },
+
+        // File commands
+        //
+        cat: null,
+        cp: null,
+        mv: null,
+        rm: null,
+
+        // ReproZip
+        //
+        reprozip: null,
+        reprounzip: null,
     }, {
         greetings: "Press enter to submit commands",
         name: 'tutorial_term',
         height: 200,
+        checkArity: false,
         prompt: '> '
     });
 });
