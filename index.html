@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="js/jquery-1.7.2.min.js"></script>
+        <script src="js/jquery.terminal-0.9.3.min.js"></script>
+        <script src="js/jquery.mousewheel.min.js"></script>
+        <link href="css/jquery.terminal-0.9.3.css" rel="stylesheet" />
+    </head>
+    <body>
+        <!-- https://github.com/jcubic/jquery.terminal -->
+        <div id="term_tutorial" class="terminal" style="height: 200px;"></div>
+        <script>
+var env = new Object();
+env.path = "/home/user";
+jQuery(function($, undefined) {
+    $('#term_tutorial').terminal({
+        ls: function() {
+            this.echo("myexperiment.py\tmydata.csv");
+        }
+    }, {
+        greetings: "Press enter to submit commands",
+        name: 'tutorial_term',
+        height: 200,
+        prompt: '> '
+    });
+});
+        </script>
+    </body>
+</html>
