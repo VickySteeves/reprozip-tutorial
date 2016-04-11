@@ -143,7 +143,27 @@ jQuery(function($, undefined) {
 
         // File commands
         //
-        cat: null,
+        cat: function() {
+            if(arguments.length === 0) {
+                this.error("cat: need at least one filename");
+                return;
+            }
+            for(var i = 0; i < arguments.length; ++i) {
+                var arg = arguments[i];
+                var ent = get_file(join_path(env.path, arguments[i]));
+                if(ent === null) {
+                    this.error("cat: " + arg + ": no such file or directory");
+                    return;
+                } else if(ent.type === 'directory') {
+                    this.error("cat: " + arg + ": is a directory");
+                    return;
+                } else if(ent.type === 'file') {
+                    if(ent.what === 'experiment') {
+                        this.echo("#!/usr/bin/env python\n\nprint(\"Hello, world!\")")
+                    }
+                }
+            }
+        },
         cp: null,
         mv: null,
         rm: null,
