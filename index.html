@@ -43,6 +43,78 @@ function get_file(path) {
     }
 }
 
+function move_file(src, target, target_is_dir, is_move, tool_name, error) {
+    if(src === '/' || src === '/home' || src === '/home/user') {
+        error(tool_name + ": can't move " + src);
+        return;
+    }
+    if(!/^\/home\/user(\/|$)/.test(target)) {
+        error(tool_name + ": can't move to " + target);
+        return;
+    }
+    var src_comp = src.split('/');
+    var src_parent = '/' + src_comp.slice(0, -1).join('/');
+    var target_comp = target.split('/');
+
+    var target_parent = null, target_name = null;
+    var target_parent_ent = null;
+    var target_ent = get_file(target);
+    if(target_ent === null || target_ent.type === 'file') {
+        if(target_is_dir) {
+            error(tool_name + ": " + target + ": not a directory");
+            return;
+        }
+        target_parent = '/' + target_comp.slice(0, -1).join('/');
+        target_name = target_comp[target_comp.length - 1];
+        target_parent_ent = get_file(target_parent);
+        if(target_parent_ent === null || target_parent_ent.type !== 'directory') {
+            error(tool_name + ": " + target + ": not a directory");
+            return;
+        }
+    } else if(target_ent.type === 'directory') {
+        target_parent = target;
+        target_parent_ent = target_ent;
+        target_name = src_comp[src_comp.length - 1];
+    }
+
+    src_ent = get_file(src);
+    if(src_ent === null) {
+        error(tool_name + ": " + src + ": no such file or directory");
+        return;
+    }
+
+    if(src_ent.type === 'file') {
+        target_parent_ent.files[target_name] = true;
+    } else {
+        target_parent_ent.directories[target_name] = true;
+    }
+    if(is_move) {
+        src_parent_ent = get_file(src_parent);
+        var src_name = src_comp[src_comp.length - 1];
+        if(src_ent.type === 'file') {
+            src_parent_ent.files[src_name] = undefined;
+        } else {
+            src_parent_ent.directories[src_name] = undefined;
+        }
+    }
+}
+
+function copy_or_move(is_move, tool_name) {
+    return function() {
+        if(arguments.length < 2) {
+            this.error("cp: needs two arguments");
+            return;
+        }
+        var target_is_dir = arguments.length > 2;
+        var target = join_path(env.path, arguments[arguments.length - 1]);
+        for(var i = 0; i < arguments.length - 1; ++i) {
+            var arg = join_path(env.path, arguments[i]);
+            move_file(arg, target, target_is_dir, is_move, tool_name,
+                      this.error);
+        }
+    };
+}
+
 var env = new Object();
 env.path = '/home/user';
 env.directories = {
@@ -164,8 +236,8 @@ jQuery(function($, undefined) {
                 }
             }
         },
-        cp: null,
-        mv: null,
+        cp: copy_or_move(false, "cp"),
+        mv: copy_or_move(true, "mv"),
         rm: null,
 
         // ReproZip
