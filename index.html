@@ -280,7 +280,34 @@ jQuery(function($, undefined) {
         },
         cp: copy_or_move(false, "cp"),
         mv: copy_or_move(true, "mv"),
-        rm: null,
+        rm: function() {
+            var recursive = false;
+            for(var i = 0; i < arguments.length; ++i) {
+                var arg = arguments[i];
+                if(arg.length > 1 && arg[0] === '-') {
+                    for(var j = 1; j < arg.length; ++j) {
+                        if(arg[j] === 'r' || arg[j] === 'R') {
+                            recursive = true;
+                        }
+                    }
+                }
+            }
+
+            var removed_one = false;
+            for(var i = 0; i < arguments.length; ++i) {
+                var arg = arguments[i];
+                if(arg.length === 0) {
+                    this.error("rm: empty argument");
+                    return;
+                } else if(arg[0] !== '-') {
+                    remove_file(resolve_path(arg), recursive, "rm", this.error);
+                    removed_one = true;
+                }
+            }
+            if(!removed_one) {
+                this.error("rm: no filename given");
+            }
+        },
 
         // ReproZip
         //
