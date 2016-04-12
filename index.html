@@ -209,7 +209,10 @@ var commands = {
         this.echo($.makeArray(arguments).join(' '));
     },
     cd: function(wd) {
-        if(arguments.length !== 1) {
+        if(arguments.length === 0) {
+            env.path = ['home', 'user'];
+        }
+        if(arguments.length > 1) {
             this.error("cd: too many arguments");
             return;
         }
