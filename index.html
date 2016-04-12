@@ -197,6 +197,14 @@ function experiment(arg) {
     return true;
 }
 
+reprozip_help = {
+    '': "usage: reprozip [-h] [--version] [-d DIR] [-v] ...\n\nreprozip is the ReproZip component responsible for tracing and packing the\nexecution of an experiment\n\noptional arguments:\n  -h, --help            show this help message and exit\n  -d DIR, --dir DIR     where to store database and configuration file\n                        (default: ./.reprozip-trace)\n  -v, --verbose         augments verbosity level\n\ncommands:\n\n    trace               Runs the program and writes out database and\n                        configuration file\n    pack                Packs the experiment according to the current\n                        configuration\n\nPlease report issues to reprozip-users@vgc.poly.edu",
+    '-': "usage: reprozip [-h] [--version] [-d DIR] [-v] ...\nreprozip: error: too few arguments",
+    'trace': "usage: reprozip trace [-h] [--version] [-d DIR] [-a ARG0] [-c] ...\n\npositional arguments:\n  cmdline               command-line to run under trace\n\noptional arguments:\n  -h, --help            show this help message and exit\n  -d DIR, --dir DIR     where to store database and configuration file\n                        (default: ./.reprozip-trace)\n  -c, --continue        add to the previous run instead of replacing it",
+    'trace-': "usage: reprozip [-h] [--version] [-d DIR] [--dont-identify-packages]\n                [--dont-find-inputs-outputs] [-v]\n                ...\nreprozip: error: missing command-line\n",
+    'pack': "usage: reprozip pack [-h] [--version] [-d DIR] [target]\n\npositional arguments:\n  target                Destination file\n\noptional arguments:\n  -h, --help            show this help message and exit\n  -d DIR, --dir DIR     where to store database and configuration file\n                        (default: ./.reprozip-trace)"
+};
+
 var commands = {
     // Fake/replaced commands
     //
@@ -340,7 +348,38 @@ var commands = {
     // ReproZip
     //
     python: experiment,
-    reprozip: null,
+    reprozip: function() {
+        var cmd = '';
+        var dir = '.reprozip-trace';
+        var args = [];
+        for(var i = 0; i < arguments.length; ++i) {
+            var arg = arguments[i];
+            if(arg === '-d' || arg === '--dir') {
+                dir = arguments[++i];
+            } else if(arg === '-h' || arg === '--help') {
+                this.echo(reprozip_help[cmd]);
+                return;
+            } else if(arg.length > 1 && arg[0] === '-') {
+                // Ignore options
+            } else if(cmd === '' && (['trace', 'pack']).includes(arg)) {
+                cmd = arg;
+            } else if(cmd === '') {
+                this.error(reprozip_help['']);
+                return;
+            } else if(cmd !== '') {
+                args.push(arg);
+            }
+        }
+        if(args.length === 0 && cmd !== 'pack') {
+            this.error(reprozip_help[cmd + '-']);
+            return;
+        }
+        if(cmd === 'trace') {
+            // TODO
+        } else if(cmd === 'pack') {
+            // TODO
+        }
+    },
     reprounzip: null
 };
 
