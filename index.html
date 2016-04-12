@@ -12,15 +12,12 @@
         <script>
 var READTHEDOCS_VERSION = '1.0.x';
 
-function join_path(a, b) {
-    var path;
-    b = b || '';
-    if(b.length > 0 && b[0] === '/') {
-        path = b;
-    } else {
-        path = a + "/" + b;
-    }
+function resolve_path(path) {
+    path = path || '';
     src = path.split('/');
+    if(path.length === 0 || path[0] !== '/') {
+        src = env.path.concat(src);
+    }
     target = [];
     for(i = 0; i < src.length; ++i) {
         comp = src[i];
@@ -30,119 +27,149 @@ function join_path(a, b) {
             target.push(comp);
         }
     }
-    return '/' + target.join('/');
+    return target;
+}
+
+function absolute_path(path) {
+    return '/' + path.join('/');
 }
 
 function get_file(path) {
-    if(path in env.directories) {
-        return env.directories[path];
-    } else if(path in env.files) {
-        return env.files[path];
-    } else {
-        return null;
+    var ent = env.filesystem;
+    for(var i = 0; i < path.length; ++i) {
+        if(ent.type !== 'directory') {
+            return null;
+        }
+        ent = ent.entries[path[i]];
+        if(ent === undefined) {
+            return null;
+        }
     }
+    return ent;
 }
 
 function move_file(src, target, target_is_dir, is_move, tool_name, error) {
-    if(src === '/' || src === '/home' || src === '/home/user') {
-        error(tool_name + ": can't move " + src);
+    var src_ent = get_file(src);
+    if(src_ent === null) {
+        error(tool_name + ": " + absolute_path(src) + ": no such file or directory");
         return;
     }
-    if(!/^\/home\/user(\/|$)/.test(target)) {
-        error(tool_name + ": can't move to " + target);
+    var src_parent = src.slice(0, -1);
+    var src_parent_ent = get_file(src_parent);
+    if(src_ent.protected === true || src_parent_ent.protected === true) {
+        error(tool_name + ": " + absolute_path(src) + ": please don't");
         return;
     }
-    var src_comp = src.split('/');
-    var src_parent = '/' + src_comp.slice(0, -1).join('/');
-    var target_comp = target.split('/');
+    var src_name = src[src.length - 1];
 
-    var target_parent = null, target_name = null;
-    var target_parent_ent = null;
     var target_ent = get_file(target);
+    var target_parent, target_name;
     if(target_ent === null || target_ent.type === 'file') {
         if(target_is_dir) {
-            error(tool_name + ": " + target + ": not a directory");
+            error(tool_name + ": " + absolute_path(target) + ": not a directory");
             return;
         }
-        target_parent = '/' + target_comp.slice(0, -1).join('/');
-        target_name = target_comp[target_comp.length - 1];
-        target_parent_ent = get_file(target_parent);
-        if(target_parent_ent === null || target_parent_ent.type !== 'directory') {
-            error(tool_name + ": " + target + ": not a directory");
-            return;
-        }
+        target_parent = target.slice(0, -1);
+        target_name = target[target.length - 1];
     } else if(target_ent.type === 'directory') {
         target_parent = target;
-        target_parent_ent = target_ent;
-        target_name = src_comp[src_comp.length - 1];
+        target_name = src[src.length - 1];
     }
 
-    src_ent = get_file(src);
-    if(src_ent === null) {
-        error(tool_name + ": " + src + ": no such file or directory");
-        return;
-    }
-
-    if(src_ent.type === 'file') {
-        target_parent_ent.files[target_name] = true;
-    } else {
-        target_parent_ent.directories[target_name] = true;
-    }
+    var target_parent_ent = get_file(target_parent);
     if(is_move) {
-        src_parent_ent = get_file(src_parent);
-        var src_name = src_comp[src_comp.length - 1];
-        if(src_ent.type === 'file') {
-            src_parent_ent.files[src_name] = undefined;
-        } else {
-            src_parent_ent.directories[src_name] = undefined;
+        target_parent_ent.entries[target_name] = src_ent;
+        if(src_ent.type === 'directory') {
+            src_ent.parent = target_parent_ent;
+        }
+        delete src_parent_ent.entries[src_name];
+    } else {
+        target_parent_ent.entries[target_name] = $.extend(true, {}, src_ent);
+        if(src_ent.type == 'directory') {
+            target_parent_ent.entries[target_name].parent = target_ent;
         }
     }
 }
 
 function copy_or_move(is_move, tool_name) {
     return function() {
-        if(arguments.length < 2) {
-            this.error("cp: needs two arguments");
-            return;
-        }
+        var paths = [];
         for(var i = 0; i < arguments.length; ++i) {
-            if(arguments[i].length === 0) {
+            var arg = arguments[i];
+            if(arg.length === 0) {
                 this.error(tool_name + ": empty argument");
                 return;
             }
+            if(arg[0] !== '-') {
+                paths.push(arg);
+            }
         }
-        var target_is_dir = arguments.length > 2;
-        var target = join_path(env.path, arguments[arguments.length - 1]);
-        for(var i = 0; i < arguments.length - 1; ++i) {
-            var arg = join_path(env.path, arguments[i]);
+        if(paths.length < 2) {
+            this.error("cp: needs two arguments");
+            return;
+        }
+        var target_is_dir = paths.length > 2;
+        var target = resolve_path(paths[paths.length - 1]);
+        for(var i = 0; i < paths.length - 1; ++i) {
+            var arg = resolve_path(paths[i]);
             move_file(arg, target, target_is_dir, is_move, tool_name,
                       this.error);
         }
     };
 }
 
+function remove_file(path, recursive, tool_name, error) {
+    if(path.length === 0) {
+        error(tool_name + ": can't remove /");
+        return;
+    }
+    var ent = get_file(path);
+    if(ent === null) {
+        error(tool_name + ": " + absolute_path(path) + ": no such file or directory");
+        return;
+    }
+    if(ent.type === 'directory' && !recursive) {
+        error(tool_name + ": not removing directories without -r");
+        return;
+    }
+    var parent = path.slice(0, -1);
+    var parent_ent = get_file(parent);
+    var name = path[path.length - 1];
+    delete parent_ent.entries[name];
+}
+
 var env = new Object();
-env.path = '/home/user';
-env.directories = {
-    '/': {
-        directories: {'home': true},
-        files: {}},
-    '/home': {
-        directories: {'user': true},
-        files: {}},
-    '/home/user': {
-        directories: {},
-        files: {'experiment.py': true}}
-};
-for(k in env.directories) {
-    env.directories[k].type = 'directory';
+env.path = ['home', 'user'];
+env.filesystem = {
+    type: 'directory',
+    protected: true,
+    entries: {
+        'home': {
+            type: 'directory',
+            protected: true,
+            entries: {
+                'user': {
+                    type: 'directory',
+                    entries: {
+                        'experiment.py': {
+                            type: 'file',
+                            what: 'experiment'
+                         }
+                    }
+                }
+            }
+        }
+    }
 }
-env.files = {
-    '/home/user/experiment.py': {what: 'experiment'}
-};
-for(k in env.files) {
-    env.files[k].type = 'file';
+function _uplink_dirs(ent, uplink) {
+    if(ent.type === 'directory') {
+        ent.parent = uplink;
+        for(k in ent.entries) {
+            _uplink_dirs(ent.entries[k], ent);
+        }
+    }
 }
+_uplink_dirs(env.filesystem, env.filesystem);
 
 jQuery(function($, undefined) {
     $('#term_tutorial').terminal({
@@ -173,7 +200,7 @@ jQuery(function($, undefined) {
         // Simple commands
         //
         pwd: function() {
-            this.echo(env.path);
+            this.echo(absolute_path(env.path));
         },
         echo: function() {
             this.echo($.makeArray(arguments).join(' '));
@@ -183,11 +210,13 @@ jQuery(function($, undefined) {
                 this.error("cd: too many arguments");
                 return;
             }
-            var path = join_path(env.path, wd);
-            if(path === '/' || path === '/home' || path === '/home/user/') {
-                env.path = wd;
+            var path = resolve_path(wd);
+            var ent = get_file(path);
+            if(ent !== null && ent.type === 'directory') {
+                env.path = path;
+            } else {
+                this.error("cd: " + absolute_path(path) + ": not something we can move to");
             }
-            this.error("cd: " + path + ": not something we can move to");
         },
         ls: function() {
             var path = null;
@@ -208,7 +237,7 @@ jQuery(function($, undefined) {
             var patharg = '.';
             if(path !== null) {
                 patharg = path;
-                path = join_path(env.path, path);
+                path = resolve_path(path);
             } else {
                 path = env.path;
             }
@@ -218,7 +247,7 @@ jQuery(function($, undefined) {
             } else if(ent.type === 'file') {
                 this.echo(patharg);
             } else if(ent.type === 'directory') {
-                this.echo($.extend([], Object.keys(ent.directories), Object.keys(ent.files)).join('\t'));
+                this.echo(Object.keys(ent.entries).join('\t'));
             }
         },
 
@@ -235,7 +264,7 @@ jQuery(function($, undefined) {
                     this.error("cat: empty argument");
                     return;
                 }
-                var ent = get_file(join_path(env.path, arguments[i]));
+                var ent = get_file(resolve_path(arguments[i]));
                 if(ent === null) {
                     this.error("cat: " + arg + ": no such file or directory");
                     return;
