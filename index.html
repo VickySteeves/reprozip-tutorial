@@ -175,7 +175,7 @@ function _uplink_dirs(ent, uplink) {
 }
 _uplink_dirs(env.filesystem, env.filesystem);
 
-$('#term_tutorial').terminal({
+var commands = {
     // Fake/replaced commands
     //
     help: function() {
@@ -315,12 +315,44 @@ $('#term_tutorial').terminal({
     // ReproZip
     //
     reprozip: null,
-    reprounzip: null,
-}, {
+    reprounzip: null
+};
+
+function interpret(command, terminal) {
+    if(command === '') {
+        return;
+    }
+    try {
+        command = $.terminal.split_command(command);
+    } catch(e) {
+        this.error(e.toString());
+        return;
+    }
+    var obj = commands[command.name];
+    if(obj === undefined) {
+        this.error("Command '" + command.name + "' not found!");
+        return;
+    }
+    obj.apply(this, command.args);
+}
+
+function complete(term, string, out) {
+    var cmd = term.cmd();
+    var line = cmd.get().substring(0, cmd.position());
+    // Only complete first word
+    if(!/[^\s]\s/.test(line)) {
+        out(['write', 'rm', 'reprozip', 'reprounzip', 'pwd', 'mv', 'mail', 'ls', 'install', 'help', 'echo', 'cp', 'cd', 'cat']);
+    } else {
+        out([]);
+    }
+}
+
+$('#term_tutorial').terminal(interpret, {
     name: 'tutorial_term',
     greetings: "Press enter to submit commands",
     height: 200,
     prompt: '> ',
+    completion: complete,
     checkArity: false,
     clear: false,
     exit: false,
