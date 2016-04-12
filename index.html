@@ -134,6 +134,10 @@ function remove_file(path, recursive, tool_name, error) {
     }
     var parent = path.slice(0, -1);
     var parent_ent = get_file(parent);
+    if(ent.protected === true || parent_ent.protected === true) {
+        error(tool_name + ": " + absolute_path(path) + ": please don't");
+        return;
+    }
     var name = path[path.length - 1];
     delete parent_ent.entries[name];
 }
