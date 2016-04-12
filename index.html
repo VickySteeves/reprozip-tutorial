@@ -52,13 +52,13 @@ function move_file(src, target, target_is_dir, is_move, tool_name, error) {
     var src_ent = get_file(src);
     if(src_ent === null) {
         error(tool_name + ": " + absolute_path(src) + ": no such file or directory");
-        return;
+        return false;
     }
     var src_parent = src.slice(0, -1);
     var src_parent_ent = get_file(src_parent);
     if(src_ent.protected === true || src_parent_ent.protected === true) {
         error(tool_name + ": " + absolute_path(src) + ": please don't");
-        return;
+        return false;
     }
     var src_name = src[src.length - 1];
 
@@ -67,7 +67,7 @@ function move_file(src, target, target_is_dir, is_move, tool_name, error) {
     if(target_ent === null || target_ent.type === 'file') {
         if(target_is_dir) {
             error(tool_name + ": " + absolute_path(target) + ": not a directory");
-            return;
+            return false;
         }
         target_parent = target.slice(0, -1);
         target_name = target[target.length - 1];
@@ -89,6 +89,7 @@ function move_file(src, target, target_is_dir, is_move, tool_name, error) {
             target_parent_ent.entries[target_name].parent = target_ent;
         }
     }
+    return true;
 }
 
 function copy_or_move(is_move, tool_name) {
@@ -121,25 +122,26 @@ function copy_or_move(is_move, tool_name) {
 function remove_file(path, recursive, tool_name, error) {
     if(path.length === 0) {
         error(tool_name + ": can't remove /");
-        return;
+        return false;
     }
     var ent = get_file(path);
     if(ent === null) {
         error(tool_name + ": " + absolute_path(path) + ": no such file or directory");
-        return;
+        return false;
     }
     if(ent.type === 'directory' && !recursive) {
         error(tool_name + ": not removing directories without -r");
-        return;
+        return false;
     }
     var parent = path.slice(0, -1);
     var parent_ent = get_file(parent);
     if(ent.protected === true || parent_ent.protected === true) {
         error(tool_name + ": " + absolute_path(path) + ": please don't");
-        return;
+        return false;
     }
     var name = path[path.length - 1];
     delete parent_ent.entries[name];
+    return true;
 }
 
 var env = new Object();
