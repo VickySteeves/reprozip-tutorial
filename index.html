@@ -175,158 +175,156 @@ function _uplink_dirs(ent, uplink) {
 }
 _uplink_dirs(env.filesystem, env.filesystem);
 
-jQuery(function($, undefined) {
-    $('#term_tutorial').terminal({
-        // Fake/replaced commands
-        //
-        help: function() {
-            this.echo(
-                "This JavaScript shell only supports a limited set of commands.",
-                {
-                    finalize: function(div) {
-                        div.append("\nIf you want to install ReproZip on your own machine, type install or <a href=\"https://reprozip.readthedocs.org/en/" + READTHEDOCS_VERSION + "/install.html\" target=\"_blank\">click here</a>!");
-                    }
-                });
-        },
-        install: function() {
-            this.echo("Opening installation instructions in new window...");
-            window.open('https://reprozip.readthedocs.org/en/' + READTHEDOCS_VERSION + '/install.html', '_blank');
-        },
-        write: function() {
-            this.echo("Taking you to our Gitter chatroom...");
-            window.open('https://gitter.im/ViDA-NYU/reprozip', '_blank');
-        },
-        mail: function() {
-            this.echo("Don't hesitate to use our mailing-list: reprozip-users@vgc.poly.edu");
-            window.open('http://vgc.poly.edu/mailman/listinfo/reprozip-users', '_blank');
-        },
+$('#term_tutorial').terminal({
+    // Fake/replaced commands
+    //
+    help: function() {
+        this.echo(
+            "This JavaScript shell only supports a limited set of commands.",
+            {
+                finalize: function(div) {
+                    div.append("\nIf you want to install ReproZip on your own machine, type install or <a href=\"https://reprozip.readthedocs.org/en/" + READTHEDOCS_VERSION + "/install.html\" target=\"_blank\">click here</a>!");
+                }
+            });
+    },
+    install: function() {
+        this.echo("Opening installation instructions in new window...");
+        window.open('https://reprozip.readthedocs.org/en/' + READTHEDOCS_VERSION + '/install.html', '_blank');
+    },
+    write: function() {
+        this.echo("Taking you to our Gitter chatroom...");
+        window.open('https://gitter.im/ViDA-NYU/reprozip', '_blank');
+    },
+    mail: function() {
+        this.echo("Don't hesitate to use our mailing-list: reprozip-users@vgc.poly.edu");
+        window.open('http://vgc.poly.edu/mailman/listinfo/reprozip-users', '_blank');
+    },
 
-        // Simple commands
-        //
-        pwd: function() {
-            this.echo(absolute_path(env.path));
-        },
-        echo: function() {
-            this.echo($.makeArray(arguments).join(' '));
-        },
-        cd: function(wd) {
-            if(arguments.length !== 1) {
-                this.error("cd: too many arguments");
+    // Simple commands
+    //
+    pwd: function() {
+        this.echo(absolute_path(env.path));
+    },
+    echo: function() {
+        this.echo($.makeArray(arguments).join(' '));
+    },
+    cd: function(wd) {
+        if(arguments.length !== 1) {
+            this.error("cd: too many arguments");
+            return;
+        }
+        var path = resolve_path(wd);
+        var ent = get_file(path);
+        if(ent !== null && ent.type === 'directory') {
+            env.path = path;
+        } else {
+            this.error("cd: " + absolute_path(path) + ": not something we can move to");
+        }
+    },
+    ls: function() {
+        var path = null;
+        for(var i = 0; i < arguments.length; ++i) {
+            var arg = arguments[i];
+            if(arg.length === 0) {
+                this.error("ls: empty argument");
                 return;
-            }
-            var path = resolve_path(wd);
-            var ent = get_file(path);
-            if(ent !== null && ent.type === 'directory') {
-                env.path = path;
-            } else {
-                this.error("cd: " + absolute_path(path) + ": not something we can move to");
-            }
-        },
-        ls: function() {
-            var path = null;
-            for(var i = 0; i < arguments.length; ++i) {
-                var arg = arguments[i];
-                if(arg.length === 0) {
-                    this.error("ls: empty argument");
+            } else if(arg[0] != '-') {
+                if(path === null) {
+                    path = arg;
+                } else {
+                    this.error("ls: too many arguments");
                     return;
-                } else if(arg[0] != '-') {
-                    if(path === null) {
-                        path = arg;
-                    } else {
-                        this.error("ls: too many arguments");
-                        return;
-                    }
                 }
             }
-            var patharg = '.';
-            if(path !== null) {
-                patharg = path;
-                path = resolve_path(path);
-            } else {
-                path = env.path;
+        }
+        var patharg = '.';
+        if(path !== null) {
+            patharg = path;
+            path = resolve_path(path);
+        } else {
+            path = env.path;
+        }
+        var ent = get_file(path);
+        if(ent === null) {
+            this.error("ls: " + patharg + ": no such file or directory");
+        } else if(ent.type === 'file') {
+            this.echo(patharg);
+        } else if(ent.type === 'directory') {
+            this.echo(Object.keys(ent.entries).join('\t'));
+        }
+    },
+
+    // File commands
+    //
+    cat: function() {
+        if(arguments.length === 0) {
+            this.error("cat: need at least one filename");
+            return;
+        }
+        for(var i = 0; i < arguments.length; ++i) {
+            var arg = arguments[i];
+            if(arg.length === 0) {
+                this.error("cat: empty argument");
+                return;
             }
-            var ent = get_file(path);
+            var ent = get_file(resolve_path(arguments[i]));
             if(ent === null) {
-                this.error("ls: " + patharg + ": no such file or directory");
-            } else if(ent.type === 'file') {
-                this.echo(patharg);
-            } else if(ent.type === 'directory') {
-                this.echo(Object.keys(ent.entries).join('\t'));
-            }
-        },
-
-        // File commands
-        //
-        cat: function() {
-            if(arguments.length === 0) {
-                this.error("cat: need at least one filename");
+                this.error("cat: " + arg + ": no such file or directory");
                 return;
-            }
-            for(var i = 0; i < arguments.length; ++i) {
-                var arg = arguments[i];
-                if(arg.length === 0) {
-                    this.error("cat: empty argument");
-                    return;
+            } else if(ent.type === 'directory') {
+                this.error("cat: " + arg + ": is a directory");
+                return;
+            } else if(ent.type === 'file') {
+                if(ent.what === 'experiment') {
+                    this.echo("#!/usr/bin/env python\n\nprint(\"Hello, world!\")")
                 }
-                var ent = get_file(resolve_path(arguments[i]));
-                if(ent === null) {
-                    this.error("cat: " + arg + ": no such file or directory");
-                    return;
-                } else if(ent.type === 'directory') {
-                    this.error("cat: " + arg + ": is a directory");
-                    return;
-                } else if(ent.type === 'file') {
-                    if(ent.what === 'experiment') {
-                        this.echo("#!/usr/bin/env python\n\nprint(\"Hello, world!\")")
+            }
+        }
+    },
+    cp: copy_or_move(false, "cp"),
+    mv: copy_or_move(true, "mv"),
+    rm: function() {
+        var recursive = false;
+        for(var i = 0; i < arguments.length; ++i) {
+            var arg = arguments[i];
+            if(arg.length > 1 && arg[0] === '-') {
+                for(var j = 1; j < arg.length; ++j) {
+                    if(arg[j] === 'r' || arg[j] === 'R') {
+                        recursive = true;
                     }
                 }
             }
-        },
-        cp: copy_or_move(false, "cp"),
-        mv: copy_or_move(true, "mv"),
-        rm: function() {
-            var recursive = false;
-            for(var i = 0; i < arguments.length; ++i) {
-                var arg = arguments[i];
-                if(arg.length > 1 && arg[0] === '-') {
-                    for(var j = 1; j < arg.length; ++j) {
-                        if(arg[j] === 'r' || arg[j] === 'R') {
-                            recursive = true;
-                        }
-                    }
-                }
-            }
+        }
 
-            var removed_one = false;
-            for(var i = 0; i < arguments.length; ++i) {
-                var arg = arguments[i];
-                if(arg.length === 0) {
-                    this.error("rm: empty argument");
-                    return;
-                } else if(arg[0] !== '-') {
-                    remove_file(resolve_path(arg), recursive, "rm", this.error);
-                    removed_one = true;
-                }
+        var removed_one = false;
+        for(var i = 0; i < arguments.length; ++i) {
+            var arg = arguments[i];
+            if(arg.length === 0) {
+                this.error("rm: empty argument");
+                return;
+            } else if(arg[0] !== '-') {
+                remove_file(resolve_path(arg), recursive, "rm", this.error);
+                removed_one = true;
             }
-            if(!removed_one) {
-                this.error("rm: no filename given");
-            }
-        },
+        }
+        if(!removed_one) {
+            this.error("rm: no filename given");
+        }
+    },
 
-        // ReproZip
-        //
-        reprozip: null,
-        reprounzip: null,
-    }, {
-        name: 'tutorial_term',
-        greetings: "Press enter to submit commands",
-        height: 200,
-        prompt: '> ',
-        checkArity: false,
-        clear: false,
-        exit: false,
-        processArguments: false
-    });
+    // ReproZip
+    //
+    reprozip: null,
+    reprounzip: null,
+}, {
+    name: 'tutorial_term',
+    greetings: "Press enter to submit commands",
+    height: 200,
+    prompt: '> ',
+    checkArity: false,
+    clear: false,
+    exit: false,
+    processArguments: false
 });
         </script>
     </body>
