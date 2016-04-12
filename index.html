@@ -175,6 +175,26 @@ function _uplink_dirs(ent, uplink) {
 }
 _uplink_dirs(env.filesystem, env.filesystem);
 
+function experiment(arg) {
+    if(arguments.length === 0) {
+        this.error("python: no script given");
+        return false;
+    } else if(arg === '') {
+        this.error("python: empty argument");
+        return false;
+    }
+    var script = get_file(resolve_path(arg));
+    if(script === null) {
+        this.error("python: " + arg + ": no such file or directory");
+        return false;
+    } else if(script.type !== 'file' || script.what !== 'experiment') {
+        this.error("python: error executing script");
+        return false;
+    }
+    this.echo("EXPERIMENT HERE");
+    return true;
+}
+
 var commands = {
     // Fake/replaced commands
     //
@@ -317,6 +337,7 @@ var commands = {
 
     // ReproZip
     //
+    python: experiment,
     reprozip: null,
     reprounzip: null
 };
